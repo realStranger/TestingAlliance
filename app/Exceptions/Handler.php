@@ -2,7 +2,13 @@
 
 namespace App\Exceptions;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Eloquent\RelationNotFoundException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -46,5 +52,59 @@ class Handler extends ExceptionHandler
         $this->reportable(function (Throwable $e) {
             //
         });
+    }
+
+    public function render($request, Throwable $e)
+    {
+        if ($request->is('api/*')) {
+            $error_code = $code = ApiException::INTERNAL_ERROR;
+            $reason = $e->getMessage();
+            $message = ApiException::getErrorMessage($error_code);
+            if ($e instanceof ApiException) {
+                $code = $e->getCode();
+                $error_code = $e->getErrorCode();
+                $reason = $e->getReason();
+                $message = ApiException::getErrorMessage($error_code);
+            }
+            if ($e instanceof ModelNotFoundException || $e instanceof RelationNotFoundException) {
+                $code = $error_code = ApiException::NOT_FOUND;
+                $reason = 'Resource not found';
+                $message = ApiException::getErrorMessage($code);
+            }
+            if ($e instanceof ThrottleRequestsException) {
+                $code = $error_code = $e->getStatusCode();
+                $reason = 'Request was blocked';
+                $message = ApiException::getErrorMessage($code);
+            }
+            if ($e instanceof NotFoundHttpException) {
+                $error_code = $code = $e->getStatusCode();
+                $reason = 'Endpoint not found';
+                $message = ApiException::getErrorMessage($code);
+            }
+            if ($e instanceof MethodNotAllowedHttpException) {
+                $error_code = $code = $e->getStatusCode();
+                $reason = 'Method not allowed';
+                $message = ApiException::getErrorMessage($code);
+            }
+            $context = [
+                'success' => false,
+                'error' => [
+                    'code' => $error_code,
+                    'message' => $message,
+                    'reason' => $reason,
+                ],
+            ];
+
+            return response()->json($context, $code);
+        } else {
+            if($e instanceof ValidationException) {
+                return response()->json([
+                    'status' => 'Validation exception',
+                    'error' => $e->getMessage()
+                ])->setStatusCode(422);
+            }
+        }
+
+        return parent::render($request, $e);
     }
 }

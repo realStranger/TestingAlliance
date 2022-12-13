@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\User;
+use App\Models\UserToken;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -14,11 +16,20 @@ class DatabaseSeeder extends Seeder
      */
     public function run()
     {
-        // \App\Models\User::factory(10)->create();
+         $user = User::factory()->create([
+             'name' => env('ADMIN_USER_NAME', 'testUser'),
+             'email' => env('ADMIN_USER_EMAIL', 'test@example.com'),
+             'password' => bcrypt(env('ADMIN_USER_PASS', '111111'))
+         ]);
 
-        // \App\Models\User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
+         UserToken::factory()->create([
+             'user_id' => $user->id
+         ]);
+
+         if (config('app.debug')){
+             $this->call([
+                 UserSeeder::class
+             ]);
+         }
     }
 }

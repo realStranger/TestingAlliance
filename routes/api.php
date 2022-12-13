@@ -1,6 +1,9 @@
 <?php
 
-use Illuminate\Http\Request;
+use App\Http\Api\Controllers\DeviceStateController;
+use App\Http\Api\Controllers\UserController;
+use App\Http\Api\Controllers\UserDeviceController;
+use App\Http\Middleware\CheckUserToken;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -14,6 +17,18 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+Route::group([
+    'prefix' => '/user/device',
+    'middleware' => [CheckUserToken::class]
+], function () {
+    Route::get('/get', [UserDeviceController::class, 'get']);
+    Route::post('/add', [UserDeviceController::class, 'add']);
+
+    Route::group(['prefix' => '/state/{device_id}'], function () {
+        Route::get('/get', [DeviceStateController::class, 'get']);
+        Route::post('/set', [DeviceStateController::class, 'set']);
+    });
 });
+
+Route::get('/login', [UserController::class, 'login']);
+Route::get('/register', [UserController::class, 'register']);
